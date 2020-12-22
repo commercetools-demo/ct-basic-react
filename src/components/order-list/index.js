@@ -1,4 +1,4 @@
-import callCT from '../../commercetools/commercetools'
+import { callCT, requestBuilder } from '../../commercetools/commercetools'
 import OrderDetail from '../order-detail';
 import { useEffect, useState} from 'react';
 
@@ -17,19 +17,19 @@ const OrderList = ({email}) => {
     }
     // Get customer ID from email.
     let customerId=null;
-    let where=encodeURIComponent(`email="${email}"`)
-    let data =  await callCT({
-      uri: `customers?where=${where}`,
+    let where=`email="${email}"`
+    let res =  await callCT({
+      uri: requestBuilder.customers.where(where).build(),
       method: 'GET'
     });
-    if(data.results.length===1) {
-      customerId=data.results[0].id;
-      let where=encodeURIComponent(`customerId="${customerId}"`);
-      data =  await callCT({
-        uri: `orders?where=${where}`,
+    if(res.body.results.length===1) {
+      customerId=res.body.results[0].id;
+      let where=`customerId="${customerId}"`;
+      res =  await callCT({
+        uri: requestBuilder.orders.where(where).build(),
         method: 'GET'
       });
-      setOrders(data.results);
+      setOrders(res.body.results);
     }
   };
 

@@ -1,53 +1,49 @@
-// Basic browser-friendly version of commercetools API-calling functions
+/* Encapsulate the JS SDK modules into a simple pair of exports:
+    requestBuilder (see https://commercetools.github.io/nodejs/sdk/api/apiRequestBuilder.html)
+    callCT - call commercetool via the sdk-client "execute" method 
+      (https://commercetools.github.io/nodejs/sdk/api/sdkClient.html)
+
+*/
+
+import { createRequestBuilder } from '@commercetools/api-request-builder'
+import { createClient } from '@commercetools/sdk-client'
+import { createAuthMiddlewareForClientCredentialsFlow } from '@commercetools/sdk-middleware-auth'
+import { createHttpMiddleware } from '@commercetools/sdk-middleware-http'
 
 const authUrl = process.env.REACT_APP_AUTH_URL;
 const projectKey = process.env.REACT_APP_PROJECT_KEY;
 const clientId = process.env.REACT_APP_CLIENT_ID;
-const clientSecret = process.env.REACT_APP_CLIENT_ID;
+const clientSecret = process.env.REACT_APP_CLIENT_SECRET;
 const scopes = [process.env.REACT_APP_SCOPES];
 const apiUrl = process.env.REACT_APP_API_URL;
 
-async function getAccessToken() {
-  let token = localStorage.getItem('ct_token');
-  if(token) {
-    return token;
-  }
-  let res = await fetch(
-    `${authUrl}/oauth/token`,
-    {
-      headers: {
-        accept: '*/*',
-        authorization: `Basic ${btoa(
-          `${clientId}:${clientSecret}`,
-        )}`,
-        'content-type':
-                      'application/x-www-form-urlencoded',
-      },
-      body: `grant_type=client_credentials&scope=${scopes}`,
-      method: 'POST'
-    },
-  )
-  let data = await res.json();
-  localStorage.setItem('ct_token',data.access_token);
-  return data.access_token;
-}
+console.log(projectKey,clientId,clientSecret,scopes);
+const authMiddleware = createAuthMiddlewareForClientCredentialsFlow({
+  host: authUrl,
+  projectKey: projectKey,
+  credentials: {
+    clientId: clientId,
+    clientSecret: clientSecret,
+  },
+  scopes: scopes
+})
 
-async function callCT(args) {
-  let token = await getAccessToken();
-  let res = await fetch(
-    `${apiUrl}/${projectKey}/${args.uri}`,
-    {
-      headers: {
-        accept: '*/*',
-        authorization: `Bearer ${token}`,
-        'content-type': 'application/json',
-      },
-      method: args.method,
-    }
-  );
-  let data = await res.json();
-  console.log(data);
-  return data;
-}
+const httpMiddleware = createHttpMiddleware({
+  host: apiUrl,
+})
 
-export default callCT;
+const client = createClient({
+  middlewares: [authMiddleware, httpMiddleware],
+})
+
+export const requestBuilder = createRequestBuilder({projectKey})
+
+export async function callCT(args) {
+  let res = await client.execute({
+    uri: args.uri,
+    method: args.method,
+    body: args.body,
+  });
+  console.log(res);
+  return res;
+}
